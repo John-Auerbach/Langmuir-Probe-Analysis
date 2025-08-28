@@ -16,7 +16,7 @@ file_list = glob.glob(os.path.join(folder, '*.lvm'))
 e = 1.602e-19     # elementary charge (C)
 m_e = 9.109e-31   # electron mass (kg)
 
-# Process only the first file
+# process only the first file
 if file_list:
     filepath = file_list[0]
     print(f'\n-------------- {os.path.basename(filepath)} --------------\n\n')
@@ -78,13 +78,13 @@ if file_list:
             V_er = V[[idx_lower, idx_upper]]
             I_er = I_e[[idx_lower, idx_upper]]
         else:
-            # Fallback: use a few points around the floating potential
+            # fallback, use a few points around the floating potential
             center_idx = np.argmin(np.abs(V - V_f))
             start_idx = max(0, center_idx - 1)
             end_idx = min(len(V) - 1, center_idx + 1)
             V_er = V[start_idx:end_idx+1]
             I_er = I_e[start_idx:end_idx+1]
-            # Ensure we have positive currents for log operation
+            # make sure positive currents for log operation
             if np.any(I_er <= 0):
                 I_er = np.abs(I_er) + 1e-12
 
@@ -253,6 +253,6 @@ Debye length: {lambda_D * 1e3:.3f} mm
     print('\n\n')
     
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
-    plt.show()  # Blocking show - keeps plot open until closed
+    plt.show()
 else:
     print("No .lvm files found in the folder.")

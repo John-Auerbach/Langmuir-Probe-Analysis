@@ -3,6 +3,7 @@ from scipy.stats import linregress
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.widgets import TextBox
 from scipy.interpolate import interp1d
 from io import StringIO
 import os
@@ -77,13 +78,13 @@ if file_list:
             V_er = V[[idx_lower, idx_upper]]
             I_er = I_e[[idx_lower, idx_upper]]
         else:
-            # fallback: use a few points around the floating potential ############
+            # Fallback: use a few points around the floating potential
             center_idx = np.argmin(np.abs(V - V_f))
             start_idx = max(0, center_idx - 1)
             end_idx = min(len(V) - 1, center_idx + 1)
             V_er = V[start_idx:end_idx+1]
             I_er = I_e[start_idx:end_idx+1]
-            # make sure positive currents for log operation
+            # Ensure we have positive currents for log operation
             if np.any(I_er <= 0):
                 I_er = np.abs(I_er) + 1e-12
 
@@ -105,19 +106,24 @@ if file_list:
 
     # plot
 
-    fig = plt.figure(figsize=(18, 10))
+    fig = plt.figure(figsize=(18, 12))
     
-    # grid for interface
-    gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.8], hspace=0.3, wspace=0.3)
+    # grid for plots, input panel, and results panel
+    gs = fig.add_gridspec(3, 3, width_ratios=[1, 1, 0.8], height_ratios=[2, 2, 1], 
+                         hspace=0.3, wspace=0.3)
     
-    # 4 main plots
+    # 4 plots
     ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
     ax3 = fig.add_subplot(gs[1, 0])
     ax4 = fig.add_subplot(gs[1, 1])
     
-    # results panel
-    ax_results = fig.add_subplot(gs[:, 2])
+    # input parameters panel (top right)
+    ax_params = fig.add_subplot(gs[0, 2])
+    ax_params.axis('off')
+    
+    # results panel (bottom right)
+    ax_results = fig.add_subplot(gs[1:, 2])
     ax_results.axis('off')
 
     ax1.plot(V, I)
@@ -160,7 +166,58 @@ if file_list:
     ax4.legend()
     ax4.grid(True)
 
-    # display results in side panel
+    # keep original computed values for reference
+    A_orig = A
+    V_f_orig = V_f
+    V_p_orig = V_p
+    V_er_start_orig = V_er[0] if len(V_er) > 0 else 0
+    V_er_end_orig = V_er[-1] if len(V_er) > 0 else 0
+
+    # iput boxes
+    box_width = 0.06
+    box_height = 0.03
+    bbox = ax_params.get_position()
+    left = bbox.x0
+    right = bbox.x1
+    top = bbox.y1
+    # compute x position for input boxes slightly to the right of the param text area
+    input_x = left + 0.6 * (right - left)
+    input_w = 0.24 * (right - left)
+    # vertical spacing for each line within the params box
+    line_h = 0.12 * (bbox.y1 - bbox.y0)
+
+    ax_A = plt.axes([input_x, top - line_h * 1.1, input_w, box_height])
+    ax_Vf = plt.axes([input_x, top - line_h * 2.1, input_w, box_height])
+    ax_Vp = plt.axes([input_x, top - line_h * 3.1, input_w, box_height])
+    ax_Ver_start = plt.axes([input_x, top - line_h * 4.1, input_w, box_height])
+    ax_Ver_end = plt.axes([input_x, top - line_h * 5.1, input_w, box_height])
+
+    # textbox widgets with default values
+    text_A = TextBox(ax_A, '', initial=f'{A:.1e}')
+    text_Vf = TextBox(ax_Vf, '', initial=f'{V_f:.3f}')
+    text_Vp = TextBox(ax_Vp, '', initial=f'{V_p:.3f}')
+    text_Ver_start = TextBox(ax_Ver_start, '', initial=f'{V_er_start_orig:.3f}')
+    text_Ver_end = TextBox(ax_Ver_end, '', initial=f'{V_er_end_orig:.3f}')
+
+    # parameter labels
+    params_text = f"""PARAMETERS
+
+Probe area A:                         (default: {A_orig:.1e} m²)
+
+Floating potential V_f:               (default: {V_f_orig:.3f} V)
+
+Plasma potential V_p:                 (default: {V_p_orig:.3f} V)
+
+Electron fit start:                   (default: {V_er_start_orig:.3f} V)
+
+Electron fit end:                     (default: {V_er_end_orig:.3f} V)
+"""
+    
+    ax_params.text(0.05, 0.95, params_text, transform=ax_params.transAxes, 
+                  fontsize=9, verticalalignment='top', fontfamily='monospace',
+                  bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.8))
+
+    # results panel
     results_text = f"""RESULTS
 
 Ion saturation slope: {slope_is:.3e} A/V
@@ -196,6 +253,6 @@ Debye length: {lambda_D * 1e3:.3f} mm
     print('\n\n')
     
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
-    plt.show() 
+    plt.show()  # Blocking show - keeps plot open until closed
 else:
     print("No .lvm files found in the folder.")

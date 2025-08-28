@@ -10,15 +10,14 @@ import os
 import glob
 
 A = 1e-5  # enter probe tip area
-folder = 'IEC Langmuir'
-file_list = glob.glob(os.path.join(folder, '*.lvm'))
+# Use a single explicit file instead of scanning a folder
+filepath = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir/0000000000000000000000.lvm"
 
 e = 1.602e-19     # elementary charge (C)
 m_e = 9.109e-31   # electron mass (kg)
 
-# process only the first file
-if file_list:
-    filepath = file_list[0]
+# Process the single specified file
+if os.path.exists(filepath):
     print(f'\n-------------- {os.path.basename(filepath)} --------------\n\n')
 
     with open(filepath, 'r') as f:
@@ -78,13 +77,13 @@ if file_list:
             V_er = V[[idx_lower, idx_upper]]
             I_er = I_e[[idx_lower, idx_upper]]
         else:
-            # fallback, use a few points around the floating potential
+            # Fallback: use a few points around the floating potential
             center_idx = np.argmin(np.abs(V - V_f))
             start_idx = max(0, center_idx - 1)
             end_idx = min(len(V) - 1, center_idx + 1)
             V_er = V[start_idx:end_idx+1]
             I_er = I_e[start_idx:end_idx+1]
-            # make sure positive currents for log operation
+            # Ensure we have positive currents for log operation
             if np.any(I_er <= 0):
                 I_er = np.abs(I_er) + 1e-12
 
@@ -173,7 +172,7 @@ if file_list:
     V_er_start_orig = V_er[0] if len(V_er) > 0 else 0
     V_er_end_orig = V_er[-1] if len(V_er) > 0 else 0
 
-    # iput boxes
+    # input boxes
     box_width = 0.06
     box_height = 0.03
     bbox = ax_params.get_position()
@@ -253,6 +252,6 @@ Debye length: {lambda_D * 1e3:.3f} mm
     print('\n\n')
     
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
-    plt.show()
+    plt.show()  # Blocking show - keeps plot open until closed
 else:
-    print("No .lvm files found in the folder.")
+    print(f"File not found: {filepath}")

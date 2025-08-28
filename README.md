@@ -7,7 +7,7 @@ $$
 where $I_{\rm i}$ is the ion current collected by the probe and $I_{\rm e}$ is the electron current. For a sufficiently negative probe bias, the ion current is virtually independent of small changes in probe potential and can be treated as a saturation current, $I_{\rm i}(V) \approx I_{\rm is}$. Hence in the ion-saturation region, we have
 
 $$
-I(V) \approx I_{\rm is} \quad (V\;\text{negative}).
+I(V) \approx I_{\rm is} \quad (V \text{negative}).
 $$
 
 The bias dependence of the electron current in the retarding region is approximately exponential, given by
@@ -25,7 +25,7 @@ $$
 In the code, I determine $I_{\rm is}$ by performing a linear regression on the measured I–V points where the probe bias is negative (ion-dominated region). I then extend that fitted ion contribution across the entire bias range and subtract it from the total measured current to obtain the isolated electron current
 
 $$
-I_{\rm e}(V) = I(V) - I_{\rm ion\_fit}(V) .
+I_{\rm e}(V) = I(V) - I_{\rm ion\_ fit}(V) .
 $$
 
 The floating potential $V_{\rm f}$ is defined where the net probe current vanishes, $I(V_{\rm f})=0$. I added interpolation to help find the exact $V_{\rm f}$. The plasma potential $V_{\rm p}$ is identified from the maximum in electron collection and is estimated numerically as the bias where $-\mathrm{d}I/\mathrm{d}V$ is minimal.

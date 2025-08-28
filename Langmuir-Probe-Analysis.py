@@ -198,6 +198,109 @@ if os.path.exists(filepath):
     text_Ver_start = TextBox(ax_Ver_start, '', initial=f'{V_er_start_orig:.3f}')
     text_Ver_end = TextBox(ax_Ver_end, '', initial=f'{V_er_end_orig:.3f}')
 
+    # update plots when parameters change
+    def update_plots(text):
+        try:
+            # get new values
+            A_new = float(text_A.text)
+            V_f_new = float(text_Vf.text)
+            V_p_new = float(text_Vp.text)
+            V_er_start_new = float(text_Ver_start.text)
+            V_er_end_new = float(text_Ver_end.text)
+            
+            # recalculate with new parameters
+            V_er_new = V[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e > 0)]
+            I_er_new = I_e[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e > 0)]
+            
+            if len(I_er_new) > 1:
+                slope_er_new, intercept_er_new, _, _, _ = linregress(V_er_new, np.log(I_er_new))
+                kT_e_new = 1 / slope_er_new
+                I_es_new = np.exp(intercept_er_new)
+                kT_e_J_new = kT_e_new * 1.60218e-19
+                n_e_new = (I_es_new / (e * A_new)) * np.sqrt((2 * np.pi * m_e) / (kT_e_J_new))
+                lambda_D_new = np.sqrt(epsilon_0 * kT_e_J_new / (n_e_new * e**2))
+                
+                # update plots
+                ax1.clear()
+                ax1.plot(V, I)
+                ax1.plot(V_is, fit_is, label='Ion Saturation Fit', color='red')
+                ax1.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+                ax1.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+                ax1.set_xlabel('Voltage (V)')
+                ax1.set_ylabel('Current (A)')
+                ax1.set_title(f'I-V Trace: {os.path.basename(filepath)}')
+                ax1.legend()
+                ax1.grid(True)
+                
+                ax2.clear()
+                ax2.plot(V, I_e)
+                ax2.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+                ax2.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+                ax2.set_xlabel('Voltage (V)')
+                ax2.set_ylabel('Electron Current (A)')
+                ax2.set_title('Electron Current (I-V, Ion Fit Subtracted)')
+                ax2.legend()
+                ax2.grid(True)
+                
+                ax3.clear()
+                ax3.plot(V, -dIdV)
+                ax3.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+                ax3.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+                ax3.set_xlabel('Voltage (V)')
+                ax3.set_ylabel('-dI/dV')
+                ax3.set_title('Inverse Derivative of I-V Curve')
+                ax3.legend()
+                ax3.grid(True)
+                
+                ax4.clear()
+                pos_mask = I_e > 0
+                ax4.plot(V[pos_mask], np.log(I_e[pos_mask]))
+                ax4.plot(V_er_new, slope_er_new * V_er_new + intercept_er_new, color='red', label='Electron Retardation Fit')
+                ax4.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+                ax4.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+                ax4.set_xlim(left=0)
+                ax4.set_xlabel('Voltage (V)')
+                ax4.set_ylabel('ln(I_e)')
+                ax4.set_title('Electron Current Log Fit')
+                ax4.legend()
+                ax4.grid(True)
+                
+                # update results
+                ax_results.clear()
+                ax_results.axis('off')
+                results_text_new = f"""RESULTS
+
+Ion saturation slope: {slope_is:.3e} A/V
+
+R²: {R2:.4f}
+
+Floating potential: {V_f_new:.3f} V
+
+Plasma potential: {V_p_new:.3f} V
+
+kT_e: {kT_e_new:.3f} eV
+
+I_e,sat: {I_es_new:.3e} A
+
+n_e: {n_e_new * 1e-6:.3e} cm⁻³
+
+Debye length: {lambda_D_new * 1e3:.3f} mm
+"""
+                ax_results.text(0.05, 0.95, results_text_new, transform=ax_results.transAxes, 
+                               fontsize=11, verticalalignment='top', fontfamily='monospace',
+                               bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8))
+                
+                plt.draw()
+        except:
+            pass  # ignore errors from invalid input
+    
+    # connect callbacks
+    text_A.on_text_change(update_plots)
+    text_Vf.on_text_change(update_plots)
+    text_Vp.on_text_change(update_plots)
+    text_Ver_start.on_text_change(update_plots)
+    text_Ver_end.on_text_change(update_plots)
+
     # parameter labels
     params_text = f"""PARAMETERS
 

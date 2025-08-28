@@ -77,13 +77,13 @@ if file_list:
             V_er = V[[idx_lower, idx_upper]]
             I_er = I_e[[idx_lower, idx_upper]]
         else:
-            # Fallback: use a few points around the floating potential
+            # fallback: use a few points around the floating potential ############
             center_idx = np.argmin(np.abs(V - V_f))
             start_idx = max(0, center_idx - 1)
             end_idx = min(len(V) - 1, center_idx + 1)
             V_er = V[start_idx:end_idx+1]
             I_er = I_e[start_idx:end_idx+1]
-            # Ensure we have positive currents for log operation
+            # make sure positive currents for log operation
             if np.any(I_er <= 0):
                 I_er = np.abs(I_er) + 1e-12
 
@@ -105,49 +105,84 @@ if file_list:
 
     # plot
 
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    fig = plt.figure(figsize=(18, 10))
+    
+    # grid for interface
+    gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.8], hspace=0.3, wspace=0.3)
+    
+    # 4 main plots
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, 0])
+    ax4 = fig.add_subplot(gs[1, 1])
+    
+    # results panel
+    ax_results = fig.add_subplot(gs[:, 2])
+    ax_results.axis('off')
 
-    axs[0, 0].plot(V, I)
-    axs[0, 0].plot(V_is, fit_is, label='Ion Saturation Fit', color='red')
-    axs[0, 0].axvline(V_f, color='purple', linestyle='--', label='V_f')
-    axs[0, 0].axvline(V_p, color='green', linestyle='--', label='V_p')
-    axs[0, 0].set_xlabel('Voltage (V)')
-    axs[0, 0].set_ylabel('Current (A)')
-    axs[0, 0].set_title(f'I-V Trace: {os.path.basename(filepath)}')
-    axs[0, 0].legend()
-    axs[0, 0].grid(True)
+    ax1.plot(V, I)
+    ax1.plot(V_is, fit_is, label='Ion Saturation Fit', color='red')
+    ax1.axvline(V_f, color='purple', linestyle='--', label='V_f')
+    ax1.axvline(V_p, color='green', linestyle='--', label='V_p')
+    ax1.set_xlabel('Voltage (V)')
+    ax1.set_ylabel('Current (A)')
+    ax1.set_title(f'I-V Trace: {os.path.basename(filepath)}')
+    ax1.legend()
+    ax1.grid(True)
 
-    axs[0, 1].plot(V, I_e)
-    axs[0, 1].axvline(V_f, color='purple', linestyle='--', label='V_f')
-    axs[0, 1].axvline(V_p, color='green', linestyle='--', label='V_p')
-    axs[0, 1].set_xlabel('Voltage (V)')
-    axs[0, 1].set_ylabel('Electron Current (A)')
-    axs[0, 1].set_title('Electron Current (I-V, Ion Fit Subtracted)')
-    axs[0, 1].legend()
-    axs[0, 1].grid(True)
+    ax2.plot(V, I_e)
+    ax2.axvline(V_f, color='purple', linestyle='--', label='V_f')
+    ax2.axvline(V_p, color='green', linestyle='--', label='V_p')
+    ax2.set_xlabel('Voltage (V)')
+    ax2.set_ylabel('Electron Current (A)')
+    ax2.set_title('Electron Current (I-V, Ion Fit Subtracted)')
+    ax2.legend()
+    ax2.grid(True)
 
-    axs[1, 0].plot(V, -dIdV)
-    axs[1, 0].axvline(V_f, color='purple', linestyle='--', label='V_f')
-    axs[1, 0].axvline(V_p, color='green', linestyle='--', label='V_p')
-    axs[1, 0].set_xlabel('Voltage (V)')
-    axs[1, 0].set_ylabel('-dI/dV')
-    axs[1, 0].set_title('Inverse Derivative of I-V Curve')
-    axs[1, 0].legend()
-    axs[1, 0].grid(True)
+    ax3.plot(V, -dIdV)
+    ax3.axvline(V_f, color='purple', linestyle='--', label='V_f')
+    ax3.axvline(V_p, color='green', linestyle='--', label='V_p')
+    ax3.set_xlabel('Voltage (V)')
+    ax3.set_ylabel('-dI/dV')
+    ax3.set_title('Inverse Derivative of I-V Curve')
+    ax3.legend()
+    ax3.grid(True)
 
     pos_mask = I_e > 0  # prevents issues with log of neg values
-    axs[1, 1].plot(V[pos_mask], np.log(I_e[pos_mask]))
-    axs[1, 1].plot(V_er, slope_er * V_er + intercept_er, color='red', label='Electron Retardation Fit')
-    axs[1, 1].axvline(V_f, color='purple', linestyle='--', label='V_f')
-    axs[1, 1].axvline(V_p, color='green', linestyle='--', label='V_p')
-    axs[1, 1].set_xlim(left=0)
-    axs[1, 1].set_xlabel('Voltage (V)')
-    axs[1, 1].set_ylabel('ln(I_e)')
-    axs[1, 1].set_title('Electron Current Log Fit')
-    axs[1, 1].legend()
-    axs[1, 1].grid(True)
+    ax4.plot(V[pos_mask], np.log(I_e[pos_mask]))
+    ax4.plot(V_er, slope_er * V_er + intercept_er, color='red', label='Electron Retardation Fit')
+    ax4.axvline(V_f, color='purple', linestyle='--', label='V_f')
+    ax4.axvline(V_p, color='green', linestyle='--', label='V_p')
+    ax4.set_xlim(left=0)
+    ax4.set_xlabel('Voltage (V)')
+    ax4.set_ylabel('ln(I_e)')
+    ax4.set_title('Electron Current Log Fit')
+    ax4.legend()
+    ax4.grid(True)
 
-    plt.tight_layout()
+    # display results in side panel
+    results_text = f"""RESULTS
+
+Ion saturation slope: {slope_is:.3e} A/V
+
+R²: {R2:.4f}
+
+Floating potential: {V_f:.3f} V
+
+Plasma potential: {V_p:.3f} V
+
+kT_e: {kT_e:.3f} eV
+
+I_e,sat: {I_es:.3e} A
+
+n_e: {n_e * 1e-6:.3e} cm⁻³
+
+Debye length: {lambda_D * 1e3:.3f} mm
+"""
+    
+    ax_results.text(0.05, 0.95, results_text, transform=ax_results.transAxes, 
+                   fontsize=11, verticalalignment='top', fontfamily='monospace',
+                   bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8))
     
     print('\n\n')
     print('Ion saturation region slope =', slope_is, 'A/V')
@@ -161,6 +196,6 @@ if file_list:
     print('\n\n')
     
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
-    plt.show()  # Blocking show - keeps plot open until closed
+    plt.show() 
 else:
     print("No .lvm files found in the folder.")

@@ -10,10 +10,31 @@ import os
 import glob
 
 A = 1e-5  # enter probe tip area
-filepath = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir/1400W_55sccm_2025-08-24_down.lvm"
+folder = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir"
+file_list = glob.glob(os.path.join(folder, '*.lvm'))
 
 e = 1.602e-19     # elementary charge (C)
 m_e = 9.109e-31   # electron mass (kg)
+
+# File selection menu
+if file_list:
+    print("Available files:")
+    for i, file_path in enumerate(file_list):
+        print(f"{i+1}: {os.path.basename(file_path)}")
+    
+    while True:
+        try:
+            choice = input(f"\nSelect file (1-{len(file_list)}): ")
+            file_index = int(choice) - 1
+            if 0 <= file_index < len(file_list):
+                filepath = file_list[file_index]
+                break
+            else:
+                print(f"Please enter a number between 1 and {len(file_list)}")
+        except ValueError:
+            print("Please enter a valid number")
+    
+    print(f'\n-------------- {os.path.basename(filepath)} --------------\n\n')
 
 if os.path.exists(filepath):
     print(f'\n-------------- {os.path.basename(filepath)} --------------\n\n')
@@ -383,4 +404,4 @@ Debye length: {lambda_D * 1e3:.3f} mm
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
     plt.show()  # Blocking show - keeps plot open until closed
 else:
-    print(f"File not found: {filepath}")
+    print("No .lvm files found in the folder.")

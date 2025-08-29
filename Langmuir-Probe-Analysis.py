@@ -10,13 +10,11 @@ import os
 import glob
 
 A = 1e-5  # enter probe tip area
-# Use a single explicit file instead of scanning a folder
-filepath = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir/0000000000000000000000.lvm"
+filepath = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir/1400W_55sccm_2025-08-24_down.lvm"
 
 e = 1.602e-19     # elementary charge (C)
 m_e = 9.109e-31   # electron mass (kg)
 
-# Process the single specified file
 if os.path.exists(filepath):
     print(f'\n-------------- {os.path.basename(filepath)} --------------\n\n')
 
@@ -77,13 +75,13 @@ if os.path.exists(filepath):
             V_er = V[[idx_lower, idx_upper]]
             I_er = I_e[[idx_lower, idx_upper]]
         else:
-            # Fallback: use a few points around the floating potential
+            # fallback, use a few points around the floating potential
             center_idx = np.argmin(np.abs(V - V_f))
             start_idx = max(0, center_idx - 1)
             end_idx = min(len(V) - 1, center_idx + 1)
             V_er = V[start_idx:end_idx+1]
             I_er = I_e[start_idx:end_idx+1]
-            # Ensure we have positive currents for log operation
+            # ensure positive currents for log operation
             if np.any(I_er <= 0):
                 I_er = np.abs(I_er) + 1e-12
 
@@ -158,7 +156,6 @@ if os.path.exists(filepath):
     ax4.plot(V_er, slope_er * V_er + intercept_er, color='red', label='Electron Retardation Fit')
     ax4.axvline(V_f, color='purple', linestyle='--', label='V_f')
     ax4.axvline(V_p, color='green', linestyle='--', label='V_p')
-    ax4.set_xlim(left=0)
     ax4.set_xlabel('Voltage (V)')
     ax4.set_ylabel('ln(I_e)')
     ax4.set_title('Electron Current Log Fit')
@@ -171,6 +168,8 @@ if os.path.exists(filepath):
     V_p_orig = V_p
     V_er_start_orig = V_er[0] if len(V_er) > 0 else 0
     V_er_end_orig = V_er[-1] if len(V_er) > 0 else 0
+    V_is_start_orig = V_is[0] if len(V_is) > 0 else V.min()
+    V_is_end_orig = V_is[-1] if len(V_is) > 0 else 0
 
     # input boxes
     box_width = 0.06
@@ -188,13 +187,17 @@ if os.path.exists(filepath):
     ax_A = plt.axes([input_x, top - line_h * 1.1, input_w, box_height])
     ax_Vf = plt.axes([input_x, top - line_h * 2.1, input_w, box_height])
     ax_Vp = plt.axes([input_x, top - line_h * 3.1, input_w, box_height])
-    ax_Ver_start = plt.axes([input_x, top - line_h * 4.1, input_w, box_height])
-    ax_Ver_end = plt.axes([input_x, top - line_h * 5.1, input_w, box_height])
+    ax_Vis_start = plt.axes([input_x, top - line_h * 4.1, input_w, box_height])
+    ax_Vis_end = plt.axes([input_x, top - line_h * 5.1, input_w, box_height])
+    ax_Ver_start = plt.axes([input_x, top - line_h * 6.1, input_w, box_height])
+    ax_Ver_end = plt.axes([input_x, top - line_h * 7.1, input_w, box_height])
 
     # textbox widgets with default values
     text_A = TextBox(ax_A, '', initial=f'{A:.1e}')
     text_Vf = TextBox(ax_Vf, '', initial=f'{V_f:.3f}')
     text_Vp = TextBox(ax_Vp, '', initial=f'{V_p:.3f}')
+    text_Vis_start = TextBox(ax_Vis_start, '', initial=f'{V_is_start_orig:.3f}')
+    text_Vis_end = TextBox(ax_Vis_end, '', initial=f'{V_is_end_orig:.3f}')
     text_Ver_start = TextBox(ax_Ver_start, '', initial=f'{V_er_start_orig:.3f}')
     text_Ver_end = TextBox(ax_Ver_end, '', initial=f'{V_er_end_orig:.3f}')
 
@@ -205,12 +208,30 @@ if os.path.exists(filepath):
             A_new = float(text_A.text)
             V_f_new = float(text_Vf.text)
             V_p_new = float(text_Vp.text)
+            V_is_start_new = float(text_Vis_start.text)
+            V_is_end_new = float(text_Vis_end.text)
             V_er_start_new = float(text_Ver_start.text)
             V_er_end_new = float(text_Ver_end.text)
             
-            # recalculate with new parameters
-            V_er_new = V[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e > 0)]
-            I_er_new = I_e[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e > 0)]
+            # recalculate ion fit with new range
+            V_is_new = V[(V >= V_is_start_new) & (V <= V_is_end_new)]
+            I_is_new = I[(V >= V_is_start_new) & (V <= V_is_end_new)]
+            
+            if len(I_is_new) > 1:
+                slope_is_new, intercept_is_new, R_is_new, _, _ = linregress(V_is_new, I_is_new)
+                fit_is_new = slope_is_new * V_is_new + intercept_is_new
+                R2_new = R_is_new**2
+                fit_is_full_new = slope_is_new * V + intercept_is_new
+                I_e_new = I - fit_is_full_new
+            else:
+                # fallback to original values if invalid range
+                slope_is_new, intercept_is_new, R2_new = slope_is, intercept_is, R2
+                fit_is_new, I_e_new = fit_is, I_e
+                V_is_new, I_is_new = V_is, I_is
+            
+            # recalculate electron fit with new parameters
+            V_er_new = V[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e_new > 0)]
+            I_er_new = I_e_new[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e_new > 0)]
             
             if len(I_er_new) > 1:
                 slope_er_new, intercept_er_new, _, _, _ = linregress(V_er_new, np.log(I_er_new))
@@ -223,7 +244,7 @@ if os.path.exists(filepath):
                 # update plots
                 ax1.clear()
                 ax1.plot(V, I)
-                ax1.plot(V_is, fit_is, label='Ion Saturation Fit', color='red')
+                ax1.plot(V_is_new, fit_is_new, label='Ion Saturation Fit', color='red')
                 ax1.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
                 ax1.axvline(V_p_new, color='green', linestyle='--', label='V_p')
                 ax1.set_xlabel('Voltage (V)')
@@ -233,7 +254,7 @@ if os.path.exists(filepath):
                 ax1.grid(True)
                 
                 ax2.clear()
-                ax2.plot(V, I_e)
+                ax2.plot(V, I_e_new)
                 ax2.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
                 ax2.axvline(V_p_new, color='green', linestyle='--', label='V_p')
                 ax2.set_xlabel('Voltage (V)')
@@ -253,12 +274,11 @@ if os.path.exists(filepath):
                 ax3.grid(True)
                 
                 ax4.clear()
-                pos_mask = I_e > 0
-                ax4.plot(V[pos_mask], np.log(I_e[pos_mask]))
+                pos_mask = I_e_new > 0
+                ax4.plot(V[pos_mask], np.log(I_e_new[pos_mask]))
                 ax4.plot(V_er_new, slope_er_new * V_er_new + intercept_er_new, color='red', label='Electron Retardation Fit')
                 ax4.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
                 ax4.axvline(V_p_new, color='green', linestyle='--', label='V_p')
-                ax4.set_xlim(left=0)
                 ax4.set_xlabel('Voltage (V)')
                 ax4.set_ylabel('ln(I_e)')
                 ax4.set_title('Electron Current Log Fit')
@@ -270,9 +290,9 @@ if os.path.exists(filepath):
                 ax_results.axis('off')
                 results_text_new = f"""RESULTS
 
-Ion saturation slope: {slope_is:.3e} A/V
+Ion saturation slope: {slope_is_new:.3e} A/V
 
-R²: {R2:.4f}
+R²: {R2_new:.4f}
 
 Floating potential: {V_f_new:.3f} V
 
@@ -298,6 +318,8 @@ Debye length: {lambda_D_new * 1e3:.3f} mm
     text_A.on_text_change(update_plots)
     text_Vf.on_text_change(update_plots)
     text_Vp.on_text_change(update_plots)
+    text_Vis_start.on_text_change(update_plots)
+    text_Vis_end.on_text_change(update_plots)
     text_Ver_start.on_text_change(update_plots)
     text_Ver_end.on_text_change(update_plots)
 
@@ -310,9 +332,13 @@ Floating potential V_f:               (default: {V_f_orig:.3f} V)
 
 Plasma potential V_p:                 (default: {V_p_orig:.3f} V)
 
-Electron fit start:                   (default: {V_er_start_orig:.3f} V)
+Ion sat start:                        (default: {V_is_start_orig:.3f} V)
 
-Electron fit end:                     (default: {V_er_end_orig:.3f} V)
+Ion sat end:                          (default: {V_is_end_orig:.3f} V)
+
+Electron ret start:                   (default: {V_er_start_orig:.3f} V)
+
+Electron ret end:                     (default: {V_er_end_orig:.3f} V)
 """
     
     ax_params.text(0.05, 0.95, params_text, transform=ax_params.transAxes, 

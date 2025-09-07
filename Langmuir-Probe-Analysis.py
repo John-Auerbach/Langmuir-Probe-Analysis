@@ -3,7 +3,7 @@ from scipy.stats import linregress
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import TextBox
+from matplotlib.widgets import TextBox, Button
 from scipy.interpolate import interp1d
 from io import StringIO
 import os
@@ -224,7 +224,16 @@ if os.path.exists(filepath):
 
     # update plots when parameters change
     def update_plots(text):
+        # Debug: log that update was invoked and show current textbox values
         try:
+            print('update_plots invoked; text box values:',
+                  'A=', getattr(text_A, 'text', ''),
+                  'Vf=', getattr(text_Vf, 'text', ''),
+                  'Vp=', getattr(text_Vp, 'text', ''),
+                  'Vis_start=', getattr(text_Vis_start, 'text', ''),
+                  'Vis_end=', getattr(text_Vis_end, 'text', ''),
+                  'Ver_start=', getattr(text_Ver_start, 'text', ''),
+                  'Ver_end=', getattr(text_Ver_end, 'text', ''))
             # get new values
             A_new = float(text_A.text)
             V_f_new = float(text_Vf.text)
@@ -250,66 +259,83 @@ if os.path.exists(filepath):
                 fit_is_new, I_e_new = fit_is, I_e
                 V_is_new, I_is_new = V_is, I_is
             
-            # recalculate electron fit with new parameters
+            # recalculate electron fit with new parameters (allow fallback)
             V_er_new = V[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e_new > 0)]
             I_er_new = I_e_new[(V >= V_er_start_new) & (V <= V_er_end_new) & (I_e_new > 0)]
-            
+
+            # prepare fallback (original) electron-fit values
+            slope_er_used = slope_er
+            intercept_er_used = intercept_er
+            kT_e_used = kT_e
+            I_es_used = I_es
+            kT_e_J_used = kT_e_J
+            n_e_used = n_e
+            lambda_D_used = lambda_D
+
+            # attempt new electron fit; if it fails we keep the original values
             if len(I_er_new) > 1:
-                slope_er_new, intercept_er_new, _, _, _ = linregress(V_er_new, np.log(I_er_new))
-                kT_e_new = 1 / slope_er_new
-                I_es_new = np.exp(intercept_er_new)
-                kT_e_J_new = kT_e_new * 1.60218e-19
-                n_e_new = (I_es_new / (e * A_new)) * np.sqrt((2 * np.pi * m_e) / (kT_e_J_new))
-                lambda_D_new = np.sqrt(epsilon_0 * kT_e_J_new / (n_e_new * e**2))
-                
-                # update plots
-                ax1.clear()
-                ax1.plot(V, I)
-                ax1.plot(V_is_new, fit_is_new, label='Ion Saturation Fit', color='red')
-                ax1.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
-                ax1.axvline(V_p_new, color='green', linestyle='--', label='V_p')
-                ax1.set_xlabel('Voltage (V)')
-                ax1.set_ylabel('Current (A)')
-                ax1.set_title(f'I-V Trace: {os.path.basename(filepath)}')
-                ax1.legend()
-                ax1.grid(True)
-                
-                ax2.clear()
-                ax2.plot(V, I_e_new)
-                ax2.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
-                ax2.axvline(V_p_new, color='green', linestyle='--', label='V_p')
-                ax2.set_xlabel('Voltage (V)')
-                ax2.set_ylabel('Electron Current (A)')
-                ax2.set_title('Electron Current (I-V, Ion Fit Subtracted)')
-                ax2.legend()
-                ax2.grid(True)
-                
-                ax3.clear()
-                ax3.plot(V, -dIdV)
-                ax3.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
-                ax3.axvline(V_p_new, color='green', linestyle='--', label='V_p')
-                ax3.set_xlabel('Voltage (V)')
-                ax3.set_ylabel('-dI/dV')
-                ax3.set_title('Inverse Derivative of I-V Curve')
-                ax3.legend()
-                ax3.grid(True)
-                
-                ax4.clear()
-                pos_mask = I_e_new > 0
-                ax4.plot(V[pos_mask], np.log(I_e_new[pos_mask]))
-                ax4.plot(V_er_new, slope_er_new * V_er_new + intercept_er_new, color='red', label='Electron Retardation Fit')
-                ax4.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
-                ax4.axvline(V_p_new, color='green', linestyle='--', label='V_p')
-                ax4.set_xlabel('Voltage (V)')
-                ax4.set_ylabel('ln(I_e)')
-                ax4.set_title('Electron Current Log Fit')
-                ax4.legend()
-                ax4.grid(True)
-                
-                # update results
-                ax_results.clear()
-                ax_results.axis('off')
-                results_text_new = f"""RESULTS
+                try:
+                    slope_er_new, intercept_er_new, _, _, _ = linregress(V_er_new, np.log(I_er_new))
+                    slope_er_used = slope_er_new
+                    intercept_er_used = intercept_er_new
+                    kT_e_used = 1 / slope_er_used
+                    I_es_used = np.exp(intercept_er_used)
+                    kT_e_J_used = kT_e_used * 1.60218e-19
+                    n_e_used = (I_es_used / (e * A_new)) * np.sqrt((2 * np.pi * m_e) / (kT_e_J_used))
+                    lambda_D_used = np.sqrt(epsilon_0 * kT_e_J_used / (n_e_used * e**2))
+                except Exception:
+                    # keep original used values
+                    pass
+
+            # update plots (always redraw so changes to Vf/Vp or ion fit are shown)
+            ax1.clear()
+            ax1.plot(V, I)
+            ax1.plot(V_is_new, fit_is_new, label='Ion Saturation Fit', color='red')
+            ax1.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+            ax1.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+            ax1.set_xlabel('Voltage (V)')
+            ax1.set_ylabel('Current (A)')
+            ax1.set_title(f'I-V Trace: {os.path.basename(filepath)}')
+            ax1.legend()
+            ax1.grid(True)
+
+            ax2.clear()
+            ax2.plot(V, I_e_new)
+            ax2.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+            ax2.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+            ax2.set_xlabel('Voltage (V)')
+            ax2.set_ylabel('Electron Current (A)')
+            ax2.set_title('Electron Current (I-V, Ion Fit Subtracted)')
+            ax2.legend()
+            ax2.grid(True)
+
+            ax3.clear()
+            ax3.plot(V, -dIdV)
+            ax3.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+            ax3.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+            ax3.set_xlabel('Voltage (V)')
+            ax3.set_ylabel('-dI/dV')
+            ax3.set_title('Inverse Derivative of I-V Curve')
+            ax3.legend()
+            ax3.grid(True)
+
+            ax4.clear()
+            pos_mask = I_e_new > 0
+            ax4.plot(V[pos_mask], np.log(I_e_new[pos_mask]))
+            # use the used slope/intercept for plotting the fit line
+            ax4.plot(V_er_new if len(V_er_new)>0 else V_er, slope_er_used * (V_er_new if len(V_er_new)>0 else V_er) + intercept_er_used, color='red', label='Electron Retardation Fit')
+            ax4.axvline(V_f_new, color='purple', linestyle='--', label='V_f')
+            ax4.axvline(V_p_new, color='green', linestyle='--', label='V_p')
+            ax4.set_xlabel('Voltage (V)')
+            ax4.set_ylabel('ln(I_e)')
+            ax4.set_title('Electron Current Log Fit')
+            ax4.legend()
+            ax4.grid(True)
+
+            # update results
+            ax_results.clear()
+            ax_results.axis('off')
+            results_text_new = f"""RESULTS
 
 Ion saturation slope: {slope_is_new:.3e} A/V
 
@@ -319,30 +345,31 @@ Floating potential: {V_f_new:.3f} V
 
 Plasma potential: {V_p_new:.3f} V
 
-kT_e: {kT_e_new:.3f} eV
+kT_e: {kT_e_used:.3f} eV
 
-I_e,sat: {I_es_new:.3e} A
+I_e,sat: {I_es_used:.3e} A
 
-n_e: {n_e_new * 1e-6:.3e} cm⁻³
+n_e: {n_e_used * 1e-6:.3e} cm⁻³
 
-Debye length: {lambda_D_new * 1e3:.3f} mm
+Debye length: {lambda_D_used * 1e3:.3f} mm
 """
-                ax_results.text(0.05, 0.95, results_text_new, transform=ax_results.transAxes, 
-                               fontsize=11, verticalalignment='top', fontfamily='monospace',
-                               bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8))
-                
-                plt.draw()
-        except:
-            pass  # ignore errors from invalid input
+            ax_results.text(0.05, 0.95, results_text_new, transform=ax_results.transAxes, 
+                           fontsize=11, verticalalignment='top', fontfamily='monospace',
+                           bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8))
+
+            plt.draw()
+        except Exception as ex:
+            # Minimal debug: print the exception so we can see why update failed
+            print('update_plots error:', repr(ex))
     
-    # connect callbacks
-    text_A.on_text_change(update_plots)
-    text_Vf.on_text_change(update_plots)
-    text_Vp.on_text_change(update_plots)
-    text_Vis_start.on_text_change(update_plots)
-    text_Vis_end.on_text_change(update_plots)
-    text_Ver_start.on_text_change(update_plots)
-    text_Ver_end.on_text_change(update_plots)
+    # apply button
+    button_x = input_x
+    button_y = top - line_h * 8.5
+    button_w = input_w
+    button_h = box_height * 1.2
+    ax_button = plt.axes([button_x, button_y, button_w, button_h])
+    apply_button = Button(ax_button, 'Apply')
+    apply_button.on_clicked(lambda x: update_plots(None))
 
     # parameter labels
     params_text = f"""PARAMETERS

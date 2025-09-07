@@ -9,8 +9,8 @@ from io import StringIO
 import os
 import glob
 
-A = 1e-5  # enter probe tip area
-folder = "/home/scien/Langmuir-Probe-Analysis/IEC Langmuir"
+A = 2.2e-6  # enter probe tip area
+folder = "/home/scien/Langmuir-Probe-Analysis/IEC-Langmuir-Ar"
 file_list = glob.glob(os.path.join(folder, '*.lvm'))
 
 e = 1.602e-19     # elementary charge (C)
@@ -236,16 +236,7 @@ if os.path.exists(filepath):
 
     # update plots when parameters change
     def update_plots(text):
-        # Debug: log that update was invoked and show current textbox values
         try:
-            print('update_plots invoked; text box values:',
-                  'A=', getattr(text_A, 'text', ''),
-                  'Vf=', getattr(text_Vf, 'text', ''),
-                  'Vp=', getattr(text_Vp, 'text', ''),
-                  'Vis_start=', getattr(text_Vis_start, 'text', ''),
-                  'Vis_end=', getattr(text_Vis_end, 'text', ''),
-                  'Ver_start=', getattr(text_Ver_start, 'text', ''),
-                  'Ver_end=', getattr(text_Ver_end, 'text', ''))
             # get new values
             A_new = float(text_A.text)
             V_f_new = float(text_Vf.text)

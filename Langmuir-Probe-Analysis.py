@@ -56,13 +56,7 @@ if os.path.exists(filepath):
     V = data.iloc[:, 0].values
     I = data.iloc[:, 1].values
 
-    ion_sat_mask = V < 0
-    V_is = V[ion_sat_mask]
-    I_is = I[ion_sat_mask]
-
-    slope_is, intercept_is, R_is, _, _ = linregress(V_is, I_is)
-    fit_is = slope_is * V_is + intercept_is
-    R2 = R_is**2
+    # (ion saturation region will be selected after floating potential is found)
 
     # interpolate data to find V_f at 0 current
     if np.any(I < 0) and np.any(I > 0):
@@ -70,8 +64,19 @@ if os.path.exists(filepath):
     else:
         V_f = np.nan
 
-    # subtract ion fit
+    # determine ion saturation region (default: V < V_f, fallback to V < 0)
+    if np.isnan(V_f):
+        ion_sat_mask = V < 0
+    else:
+        ion_sat_mask = V < V_f
+    V_is = V[ion_sat_mask]
+    I_is = I[ion_sat_mask]
 
+    slope_is, intercept_is, R_is, _, _ = linregress(V_is, I_is)
+    fit_is = slope_is * V_is + intercept_is
+    R2 = R_is**2
+
+    # subtract ion fit
     fit_is_full = slope_is * V + intercept_is # extend ion sat fit to all voltages not just masked region
     I_e = I - fit_is_full
 

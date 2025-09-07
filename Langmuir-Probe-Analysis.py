@@ -113,8 +113,15 @@ if os.path.exists(filepath):
 
     slope_er, intercept_er, R_er, _, _ = linregress(V_er, np.log(I_er))
 
-    kT_e = 1 / slope_er
-    I_es = np.exp(intercept_er)
+    if slope_er == 0:
+        kT_e = np.nan
+        print('warning: slope_er is zero, cannot compute kT_e')
+    else:
+        kT_e = 1.0 / slope_er
+
+    # evaluate the extrapolated electron saturation current at the plasma potential V_p
+    I_es = np.exp(slope_er * V_p + intercept_er)
+
 
     kT_e_J = kT_e * 1.60218e-19 # convert kT_e from eV to J
 
@@ -364,7 +371,6 @@ Debye length: {lambda_D_used * 1e3:.3f} mm
 
             plt.draw()
         except Exception as ex:
-            # Minimal debug: print the exception so we can see why update failed
             print('update_plots error:', repr(ex))
     
     # apply button
@@ -434,6 +440,6 @@ Debye length: {lambda_D * 1e3:.3f} mm
     print('\n\n')
     
     print("Displaying plots... Close the plot window to continue or press Ctrl+C to exit.")
-    plt.show()  # Blocking show - keeps plot open until closed
+    plt.show()
 else:
     print("No .lvm files found in the folder.")
